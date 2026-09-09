@@ -26,6 +26,24 @@
         "shadow": false,
         "dragDropEnabled": false,
         "backgroundColor": "#00000000"
+      },
+      {
+        "label": "codex-usage",
+        "title": "Codex Usage",
+        "url": "usage.html",
+        "width": 252,
+        "height": 116,
+        "visible": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": true,
+        "shadow": false,
+        "dragDropEnabled": false,
+        "focus": false,
+        "focusable": false,
+        "backgroundColor": "#00000000"
       }
     ],
     "security": {
@@ -39,8 +57,18 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico", "icons/32x32.png", "icons/icon.png"],
-    "windows": { "webviewInstallMode": { "type": "skip" } }
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/32x32.png",
+      "icons/icon.png"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "skip"
+      }
+    }
   }
 }

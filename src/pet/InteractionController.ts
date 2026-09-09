@@ -9,6 +9,8 @@ const DRAG_THRESHOLD_LOGICAL = 5;
 const CLICK_MAX_MS = 600;
 interface Press { pointer: number; button: MouseButton; start: Point; anchor: Point; at: number; dragging: boolean }
 export class InteractionController {
+  private hovered = false;
+  private head: Point | undefined;
   private press: Press | null = null;
   private ignored: boolean | null = null;
   private sample: DesktopSample;
@@ -20,6 +22,16 @@ export class InteractionController {
   private events = new AbortController();
   constructor(private renderer: Renderer, private render: RenderConfig, private engine: BehaviorEngine, private bridge: DesktopBridge, sample: DesktopSample, private threshold: number) {
     this.sample = sample;
+    const frame = renderer.frame;
+    if (frame) {
+      let top = frame.height, left = frame.width, right = 0;
+      for (let y = 0; y < frame.height; y++) for (let x = 0; x < frame.width; x++) {
+        if ((frame.alpha[y * frame.width + x] ?? 0) >= Math.max(1, threshold)) {
+          top = Math.min(top, y); left = Math.min(left, x); right = Math.max(right, x);
+        }
+      }
+      if (top < frame.height) this.head = { x: (left + right + 1) / (2 * frame.width), y: top / frame.height };
+    }
     const options = { signal: this.events.signal };
     renderer.canvas.addEventListener('pointerdown', e => { this.enqueue(() => this.down(e)); }, options);
     renderer.canvas.addEventListener('pointerup', e => { this.enqueue(() => this.up(e.pointerId, false)); }, options);
@@ -39,6 +51,11 @@ export class InteractionController {
   private hit(sample = this.sample): boolean {
     return alphaHit(this.renderer.frame, { x: sample.cursor.x - sample.origin.x, y: sample.cursor.y - sample.origin.y }, sample.size, this.threshold);
   }
+  private async setHover(hovered: boolean): Promise<void> {
+    if (hovered === this.hovered && !hovered) return;
+    await this.bridge.usageHover(hovered, this.head);
+    this.hovered = hovered;
+  }
   private async setIgnored(ignore: boolean): Promise<void> {
     if (this.ignored === ignore) return;
     await this.bridge.ignore(ignore); this.ignored = ignore;
@@ -51,6 +68,7 @@ export class InteractionController {
     // Verify the actual event pixel too: the polling snapshot may be up to 40ms old.
     const rect = this.renderer.canvas.getBoundingClientRect();
     if (!alphaHit(this.renderer.frame, { x: event.clientX - rect.left, y: event.clientY - rect.top }, rect, this.threshold)) return;
+    await this.setHover(false);
     this.press = { pointer: event.pointerId, button, start: this.sample.cursor, anchor: this.anchor(), at: performance.now(), dragging: false };
     this.renderer.canvas.setPointerCapture(event.pointerId);
     await this.setIgnored(false);
@@ -92,6 +110,7 @@ export class InteractionController {
       }
       const hit = this.hit();
       await this.setIgnored(this.press ? false : !hit);
+      await this.setHover(!this.press && hit);
       const anchor = this.anchor();
       this.engine.sample(now, Math.hypot(this.sample.cursor.x - anchor.x, this.sample.cursor.y - anchor.y) / this.sample.scale, !this.press && hit);
       this.failureCount = 0;
@@ -100,6 +119,7 @@ export class InteractionController {
         console.error('Global cursor/click-through API unavailable on this platform', error);
         await this.bridge.log(`Platform cursor/click-through limitation: ${String(error)}`).catch(console.error);
       }
+      await this.setHover(false).catch(console.error);
       // Retry, but restore input so the pet remains recoverable via drag/tray.
       await this.setIgnored(false).catch(console.error);
     } finally {
@@ -111,6 +131,7 @@ export class InteractionController {
     if (this.timer) clearTimeout(this.timer);
     await this.processing;
     await this.cancel();
+    await this.setHover(false);
     await this.setIgnored(true);
   }
 }

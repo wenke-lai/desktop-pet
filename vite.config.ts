@@ -1,2 +1,2 @@
 import { defineConfig } from 'vite';
-export default defineConfig({ clearScreen: false, build: { target: 'es2022' } });
+export default defineConfig({ clearScreen: false, build: { target: 'es2022', rollupOptions: { input: { main: 'index.html', usage: 'usage.html' } } } });

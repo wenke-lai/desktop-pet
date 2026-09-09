@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { DesktopSample, Point, Snapshot } from './types';
 
 export const desktop = {
+  usageHover: (hovered: boolean, head?: Point) => invoke<void>('set_usage_hover', { hovered, head }),
   snapshot: () => invoke<Snapshot>('get_snapshot'),
   reload: () => invoke<Snapshot>('reload_content'),
   activate: (id: string | null) => invoke<DesktopSample>('activate_pet', { id }),

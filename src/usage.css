@@ -1,0 +1,9 @@
+:root { color-scheme: light; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: transparent; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; user-select: none; pointer-events: none; }
+.bubble { position: relative; margin: 5px 6px 14px; padding: 10px 14px; border: 1px solid #d6dcd7; border-radius: 14px; background: #fffef9; color: #283e34; font-size: 12px; line-height: 21px; white-space: nowrap; box-shadow: 0 2px 5px #142d1920; }
+.bubble::after { content: ''; position: absolute; bottom: -6px; left: calc(50% - 5px); width: 10px; height: 10px; background: #fffef9; border-right: 1px solid #d6dcd7; border-bottom: 1px solid #d6dcd7; transform: rotate(45deg); }
+strong { display: block; font-size: 13px; }
+#usage { font-weight: 700; }
+small { display: block; font-family: system-ui, sans-serif; font-size: 10px; line-height: 14px; color: #826844; }
+small:empty { display: none; }

@@ -1,3 +1,4 @@
+mod codex;
 mod tray;
 mod window;
 
@@ -81,6 +82,37 @@ fn persist_position(window: &WebviewWindow, state: &AppState) -> Result<(), Stri
 #[tauri::command]
 fn save_position(window: WebviewWindow, state: State<'_, AppState>) -> Result<(), String> { persist_position(&window, &state) }
 #[tauri::command]
+async fn get_codex_usage(state: State<'_, codex::UsageCache>) -> Result<codex::UsageSnapshot, String> { state.read().await }
+#[tauri::command]
+fn set_usage_hover(hovered: bool, head: Option<Point>, app: tauri::AppHandle) -> Result<(), String> {
+    let bubble = app.get_webview_window("codex-usage").ok_or("Missing usage window")?;
+    if !hovered { return bubble.hide().map_err(|e| e.to_string()); }
+    let pet = app.get_webview_window("main").ok_or("Missing pet window")?;
+    let position = pet.inner_position().map_err(|e| e.to_string())?;
+    let size = pet.inner_size().map_err(|e| e.to_string())?;
+    let head = head.unwrap_or(Point { x: 0.5, y: 0.0 });
+    if !head.x.is_finite() || !head.y.is_finite() { return Err("Invalid head position".into()); }
+    if let Some(monitor) = pet.current_monitor().map_err(|e| e.to_string())? {
+        let area = monitor.work_area();
+        // Keep the bubble legible at the pet's current monitor DPI.
+        let scale = monitor.scale_factor();
+        let width = (252.0 * scale).round() as u32;
+        let height = (116.0 * scale).round() as u32;
+        let target_size = tauri::PhysicalSize::new(width, height);
+        if bubble.inner_size().map_err(|e| e.to_string())? != target_size { bubble.set_size(target_size).map_err(|e| e.to_string())?; }
+        let x = f64::from(position.x) + head.x.clamp(0.0, 1.0) * f64::from(size.width) - f64::from(width) / 2.0;
+        let y = f64::from(position.y) + head.y.clamp(0.0, 1.0) * f64::from(size.height) - f64::from(height);
+        let min_x = area.position.x;
+        let min_y = area.position.y;
+        let max_x = (min_x + area.size.width as i32 - width as i32).max(min_x);
+        let max_y = (min_y + area.size.height as i32 - height as i32).max(min_y);
+        let target = tauri::PhysicalPosition::new((x.round() as i32).clamp(min_x, max_x), (y.round() as i32).clamp(min_y, max_y));
+        if bubble.outer_position().map_err(|e| e.to_string())? != target { bubble.set_position(target).map_err(|e| e.to_string())?; }
+    }
+    if !bubble.is_visible().map_err(|e| e.to_string())? { bubble.show().map_err(|e| e.to_string())?; }
+    Ok(())
+}
+#[tauri::command]
 fn frontend_log(message: String) { log::info!("WebView: {message}"); }
 
 pub fn run() {
@@ -100,11 +132,13 @@ pub fn run() {
             settings.save(&root.join("settings.json")).map_err(std::io::Error::other)?;
             let catalog = content::scan(&root.join("pets")).map_err(std::io::Error::other)?;
             app.manage(AppState { root, session: Mutex::new(Session { catalog, settings, render: None }) });
+            app.manage(codex::UsageCache::default());
+            if let Some(bubble) = app.get_webview_window("codex-usage") { bubble.set_ignore_cursor_events(true)?; }
             tray::build(app)?;
             if let Some(window) = app.get_webview_window("main") { window.set_ignore_cursor_events(true)?; }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_snapshot, reload_content, activate_pet, desktop_sample, set_cursor_passthrough, move_pet, settle_window, save_position, frontend_log])
+        .invoke_handler(tauri::generate_handler![get_snapshot, reload_content, activate_pet, desktop_sample, set_cursor_passthrough, move_pet, settle_window, save_position, frontend_log, get_codex_usage, set_usage_hover])
         .run(tauri::generate_context!());
     if let Err(error) = result { eprintln!("Desktop Pet failed to start: {error}"); }
 }
