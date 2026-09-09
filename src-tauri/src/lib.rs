@@ -2,12 +2,14 @@ mod tray;
 mod window;
 
 use pet_core::{content::{self, Catalog}, geometry::Point, manifest::RenderConfig, settings::Settings};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, sync::Mutex};
 use tauri::{Manager, State, WebviewWindow};
 
 pub struct Session { catalog: Catalog, settings: Settings, render: Option<RenderConfig> }
 pub struct AppState { root: PathBuf, session: Mutex<Session> }
+#[derive(Deserialize)]
+struct Project { name: String }
 #[derive(Serialize)]
 struct Snapshot { catalog: Catalog, settings: Settings, content_root: String }
 fn snapshot(state: &AppState) -> Result<Snapshot, String> {
@@ -85,8 +87,10 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let root = app.path().app_local_data_dir()?.join("DesktopPet");
+            let project: Project = serde_json::from_str(include_str!("../../package.json"))?;
+            let root = app.path().home_dir()?.join(".local/share").join(project.name);
             fs::create_dir_all(root.join("pets"))?;
+            app.asset_protocol_scope().allow_directory(root.join("pets"), true)?;
             fs::create_dir_all(root.join("logs"))?;
             let mut loggers: Vec<Box<dyn simplelog::SharedLogger>> = vec![simplelog::SimpleLogger::new(log::LevelFilter::Info, simplelog::Config::default())];
             if let Ok(file) = fs::File::create(root.join("logs/latest.log")) { loggers.push(simplelog::WriteLogger::new(log::LevelFilter::Info, simplelog::Config::default(), file)); }

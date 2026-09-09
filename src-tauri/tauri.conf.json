@@ -33,7 +33,7 @@
       "devCsp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; object-src 'none'; base-uri 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPLOCALDATA/DesktopPet/pets/**"]
+        "scope": []
       }
     }
   },
