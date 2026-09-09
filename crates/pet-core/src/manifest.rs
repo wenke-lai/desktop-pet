@@ -13,7 +13,10 @@ pub struct PetDefinition {
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RenderConfig {
+    // Derived from PNG frames by the loader, never read from pet.json.
+    #[serde(skip_deserializing)]
     pub canvas_width: u32,
+    #[serde(skip_deserializing)]
     pub canvas_height: u32,
     pub scale: f64,
     pub anchor_x: f64,
@@ -21,9 +24,6 @@ pub struct RenderConfig {
 }
 impl RenderConfig {
     pub fn validate(&self) -> Result<(), String> {
-        if self.canvas_width == 0 || self.canvas_height == 0 || self.canvas_width > 4096 || self.canvas_height > 4096 {
-            return Err("render dimensions must be 1..4096".into());
-        }
         if !self.scale.is_finite() || self.scale <= 0.0 || self.scale > 10.0 {
             return Err("render.scale must be > 0 and <= 10".into());
         }

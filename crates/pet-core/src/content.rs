@@ -48,7 +48,7 @@ pub fn safe_relative(root: &Path, relative: &str) -> Result<PathBuf, String> {
     if !path.starts_with(root) { return Err(format!("path escapes character root: {relative}")); }
     Ok(path)
 }
-fn discover_frames(root: &Path, dir: &str, width: u32, height: u32) -> Result<Vec<String>, String> {
+fn discover_frames(root: &Path, dir: &str, expected: Option<(u32, u32)>) -> Result<(Vec<String>, (u32, u32)), String> {
     let directory = safe_relative(root, dir)?;
     let mut files = Vec::new();
     for entry in fs::read_dir(&directory).map_err(|e| e.to_string())? {
@@ -61,10 +61,18 @@ fn discover_frames(root: &Path, dir: &str, width: u32, height: u32) -> Result<Ve
     }
     files.sort_by(|a,b| natural_cmp(&a.0, &b.0));
     if files.is_empty() { return Err(format!("{dir}: no PNG frames")); }
+    // The first fallback frame supplies the canvas size for the entire pet.
+    let mut reader = image::ImageReader::open(&files[0].1).map_err(|e| e.to_string())?;
+    reader.set_format(image::ImageFormat::Png);
+    let dimensions = reader.into_dimensions().map_err(|e| format!("{dir}: invalid PNG: {e}"))?;
+    let (width, height) = expected.unwrap_or(dimensions);
+    if width == 0 || height == 0 || width > 4096 || height > 4096 {
+        return Err(format!("{dir}: PNG dimensions must be 1..4096"));
+    }
     // Bound decoded memory to keep malformed or unexpectedly huge packs recoverable.
     let bytes = u64::from(width) * u64::from(height) * 4 * files.len() as u64;
     if bytes > 512 * 1024 * 1024 { return Err(format!("{dir}: decoded sequence exceeds 512 MiB")); }
-    files.into_iter().map(|(_, path)| {
+    let frames = files.into_iter().map(|(_, path)| {
         let mut reader = image::ImageReader::open(&path).map_err(|e| e.to_string())?;
         reader.set_format(image::ImageFormat::Png);
         let mut limits = image::Limits::default();
@@ -72,9 +80,10 @@ fn discover_frames(root: &Path, dir: &str, width: u32, height: u32) -> Result<Ve
         limits.max_image_height = Some(height);
         reader.limits(limits);
         let frame = reader.decode().map_err(|e| format!("{}: invalid PNG: {e}", path.display()))?;
-        if frame.width() != width || frame.height() != height { return Err(format!("{}: frame size must match render {}x{}", path.display(), width, height)); }
+        if frame.width() != width || frame.height() != height { return Err(format!("{}: frame size must match fallback PNG {}x{}", path.display(), width, height)); }
         path.to_str().map(String::from).ok_or_else(|| "frame path is not valid Unicode".into())
-    }).collect()
+    }).collect::<Result<Vec<_>, String>>()?;
+    Ok((frames, (width, height)))
 }
 fn warning(warnings: &mut Vec<String>, message: String) { log::warn!("{message}"); warnings.push(message); }
 
@@ -85,17 +94,26 @@ pub fn load_pet(root: &Path, warnings: &mut Vec<String>) -> Result<LoadedPet, St
     let mut definition: PetDefinition = serde_json::from_slice(&fs::read(manifest).map_err(|e| e.to_string())?).map_err(|e| format!("invalid JSON/manifest: {e}"))?;
     definition.validate()?;
     let mut clips = BTreeMap::new();
-    for (name, animation) in &definition.animations {
+    let mut dimensions = None;
+    let fallback = definition.animations.get_key_value(&definition.fallback_animation).ok_or("missing fallback animation")?;
+    let animations = std::iter::once(fallback).chain(definition.animations.iter().filter(|(name, _)| *name != &definition.fallback_animation));
+    for (name, animation) in animations {
         let result = match &animation.source {
-            AnimationSource::PngSequence { dir } => discover_frames(&root, dir, definition.render.canvas_width, definition.render.canvas_height),
+            AnimationSource::PngSequence { dir } => discover_frames(&root, dir, dimensions),
             AnimationSource::Unsupported => Err("Unsupported animation source type".into()),
         };
         match result {
-            Ok(frames) => {
+            Ok((frames, size)) => {
+                dimensions = Some(size);
+                definition.render.canvas_width = size.0;
+                definition.render.canvas_height = size.1;
                 log::info!("Animation {name}: {} frames", frames.len());
                 clips.insert(name.clone(), LoadedAnimation { definition: animation.clone(), frames });
             }
-            Err(e) => warning(warnings, format!("Pet {}: skipped animation {name} - {e}", definition.id)),
+            Err(e) => {
+                warning(warnings, format!("Pet {}: skipped animation {name} - {e}", definition.id));
+                if name == &definition.fallback_animation { return Err("fallback animation could not be loaded".into()); }
+            }
         }
     }
     if !clips.contains_key(&definition.fallback_animation) { return Err("fallback animation could not be loaded".into()); }

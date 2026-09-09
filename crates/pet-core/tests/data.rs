@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 fn manifest() -> Value {
     json!({ "schema_version": 1, "id": "sample", "display_name": "Sample",
-      "render": { "canvas_width": 2, "canvas_height": 2, "scale": 1.0, "anchor_x": 0.5, "anchor_y": 0.9 },
+      "render": { "scale": 1.0, "anchor_x": 0.5, "anchor_y": 0.9 },
       "fallback_animation": "breathing", "animations": {
         "breathing": { "source": { "type": "png_sequence", "dir": "animations/base" }, "fps": 24, "loop": true, "priority": 0, "interruptible": true },
         "arbitrary-action": { "source": { "type": "png_sequence", "dir": "animations/other" }, "fps": 30, "loop": false, "priority": 50, "interruptible": false }
@@ -28,6 +28,49 @@ fn valid_manifest_discovers_alpha_pngs_with_natural_sort() {
     let names: Vec<_> = frames.iter().map(|f| Path::new(f).file_name().unwrap().to_str().unwrap()).collect();
     assert_eq!(names, ["1.png", "2.png", "10.png", "11.png"]);
     assert_eq!(pet.definition.fallback_animation, "breathing");
+    assert_eq!((pet.definition.render.canvas_width, pet.definition.render.canvas_height), (2, 2));
+}
+#[test]
+fn png_dimensions_replace_legacy_manifest_dimensions_and_reach_the_frontend() {
+    let temp = tempfile::tempdir().unwrap(); let mut data = manifest();
+    data["render"]["canvas_width"] = json!(512);
+    data["render"]["canvas_height"] = json!(512);
+    data["render"]["scale"] = json!(0.5);
+    pack(temp.path(), &data);
+    for dir in ["base", "other"] {
+        for entry in fs::read_dir(temp.path().join("animations").join(dir)).unwrap() {
+            image::RgbaImage::new(8, 4).save(entry.unwrap().path()).unwrap();
+        }
+    }
+    let pet = load_pet(temp.path(), &mut vec![]).unwrap();
+    let render = &serde_json::to_value(&pet).unwrap()["render"];
+    assert_eq!(render["canvas_width"], 8);
+    assert_eq!(render["canvas_height"], 4);
+    assert_eq!(render["scale"], 0.5);
+    assert_eq!(render["anchor_x"], 0.5);
+    assert_eq!(render["anchor_y"], 0.9);
+}
+#[test]
+fn fallback_sets_dimensions_before_alphabetically_earlier_optional_animation() {
+    let temp = tempfile::tempdir().unwrap(); pack(temp.path(), &manifest());
+    for entry in fs::read_dir(temp.path().join("animations/other")).unwrap() {
+        image::RgbaImage::new(1, 1).save(entry.unwrap().path()).unwrap();
+    }
+    let mut warnings = vec![];
+    let pet = load_pet(temp.path(), &mut warnings).unwrap();
+    assert_eq!((pet.definition.render.canvas_width, pet.definition.render.canvas_height), (2, 2));
+    assert_eq!(pet.clips.len(), 1);
+    assert!(pet.clips.contains_key("breathing"));
+    assert!(pet.definition.behaviors.is_empty());
+    assert!(warnings.iter().any(|w| w.contains("frame size must match fallback PNG")));
+}
+#[test]
+fn oversized_inferred_dimensions_are_rejected() {
+    let temp = tempfile::tempdir().unwrap(); pack(temp.path(), &manifest());
+    image::RgbaImage::new(4097, 1).save(temp.path().join("animations/base/1.png")).unwrap();
+    let mut warnings = vec![];
+    assert!(load_pet(temp.path(), &mut warnings).is_err());
+    assert!(warnings.iter().any(|w| w.contains("PNG dimensions must be 1..4096")));
 }
 #[test]
 fn invalid_json_is_skipped_while_other_pack_loads() {
