@@ -5,3 +5,5 @@ src-tauri/gen/
 *.log
 .tools/
 test-results/
+.DS_Store
+demo/
