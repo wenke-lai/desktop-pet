@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Desktop Pet Character Pack v1",
+  "description": "IDE validation. Runtime additionally checks fallback/references, timer ranges, hysteresis, PNG decoding and canonical paths. Unsupported sources and invalid choices are skipped with warnings.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "render": {
+      "type": "object",
+      "properties": {
+        "canvas_width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "canvas_height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "anchor_x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "anchor_y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "canvas_width",
+        "canvas_height",
+        "scale",
+        "anchor_x",
+        "anchor_y"
+      ],
+      "additionalProperties": false
+    },
+    "fallback_animation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "animations": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "png_sequence"
+              },
+              "dir": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:]).+$"
+              }
+            },
+            "required": [
+              "type",
+              "dir"
+            ],
+            "additionalProperties": false
+          },
+          "fps": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "loop": {
+            "type": "boolean"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "interruptible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "fps",
+          "loop",
+          "priority",
+          "interruptible"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "behaviors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trigger": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "timer"
+                  },
+                  "min_ms": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4294967295
+                  },
+                  "max_ms": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4294967295
+                  }
+                },
+                "required": [
+                  "type",
+                  "min_ms",
+                  "max_ms"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "cursor_distance_enter"
+                  },
+                  "distance_px": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "reset_distance_px": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "type",
+                  "distance_px",
+                  "reset_distance_px"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "hover"
+                  },
+                  "dwell_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  }
+                },
+                "required": [
+                  "type",
+                  "dwell_ms"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "click"
+                  },
+                  "button": {
+                    "enum": [
+                      "left",
+                      "right",
+                      "middle"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "button"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "drag_start"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "drag_end"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "only_when": {
+            "enum": [
+              "any",
+              "fallback"
+            ],
+            "default": "any"
+          },
+          "cooldown_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295,
+            "default": 0
+          },
+          "choose": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "animation": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "weight": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "animation",
+                "weight"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "trigger",
+          "choose"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "display_name",
+    "render",
+    "fallback_animation",
+    "animations",
+    "behaviors"
+  ],
+  "additionalProperties": false
+}

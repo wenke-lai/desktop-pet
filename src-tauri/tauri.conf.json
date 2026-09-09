@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2", "productName": "Desktop Pet", "version": "0.1.0", "identifier": "com.desktop-pet.app",
+  "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [{ "label": "main", "title": "Desktop Pet", "width": 256, "height": 256, "visible": false, "transparent": true, "decorations": false, "alwaysOnTop": true, "resizable": false, "skipTaskbar": true, "shadow": false, "dragDropEnabled": false, "backgroundColor": "#00000000" }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' asset: http://asset.localhost; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-src 'none'",
+      "devCsp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420; object-src 'none'; base-uri 'none'",
+      "assetProtocol": { "enable": true, "scope": ["$APPLOCALDATA/DesktopPet/pets/**"] }
+    }
+  },
+  "bundle": { "active": true, "targets": ["nsis"], "icon": ["icons/icon.ico", "icons/icon.png"], "windows": { "webviewInstallMode": { "type": "skip" } } }
+}

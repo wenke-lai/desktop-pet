@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "id": "dog",
+  "display_name": "Dog",
+  "render": {
+    "canvas_width": 512,
+    "canvas_height": 384,
+    "scale": 1.0,
+    "anchor_x": 0.5,
+    "anchor_y": 0.9
+  },
+  "fallback_animation": "breathe",
+  "animations": {
+    "breathe": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/breathe"
+      },
+      "fps": 20,
+      "loop": true,
+      "priority": 0,
+      "interruptible": true
+    },
+    "scratch": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/scratch"
+      },
+      "fps": 24,
+      "loop": false,
+      "priority": 10,
+      "interruptible": true
+    },
+    "bark": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/bark"
+      },
+      "fps": 24,
+      "loop": false,
+      "priority": 30,
+      "interruptible": true
+    }
+  },
+  "behaviors": [
+    {
+      "id": "dog_random",
+      "trigger": {
+        "type": "timer",
+        "min_ms": 5000,
+        "max_ms": 13000
+      },
+      "only_when": "fallback",
+      "choose": [
+        {
+          "animation": "scratch",
+          "weight": 4
+        },
+        {
+          "animation": "bark",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "dog_click",
+      "trigger": {
+        "type": "click",
+        "button": "left"
+      },
+      "cooldown_ms": 1000,
+      "choose": [
+        {
+          "animation": "bark",
+          "weight": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "id": "swordsman",
+  "display_name": "Swordsman",
+  "render": {
+    "canvas_width": 512,
+    "canvas_height": 512,
+    "scale": 1.0,
+    "anchor_x": 0.5,
+    "anchor_y": 0.95
+  },
+  "fallback_animation": "idle",
+  "animations": {
+    "idle": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/idle"
+      },
+      "fps": 24,
+      "loop": true,
+      "priority": 0,
+      "interruptible": true
+    },
+    "look_around": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/look_around"
+      },
+      "fps": 24,
+      "loop": false,
+      "priority": 10,
+      "interruptible": true
+    },
+    "attack_01": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/attack_01"
+      },
+      "fps": 30,
+      "loop": false,
+      "priority": 50,
+      "interruptible": false
+    },
+    "attack_02": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/attack_02"
+      },
+      "fps": 30,
+      "loop": false,
+      "priority": 50,
+      "interruptible": false
+    },
+    "mouse_react": {
+      "source": {
+        "type": "png_sequence",
+        "dir": "animations/mouse_react"
+      },
+      "fps": 24,
+      "loop": false,
+      "priority": 30,
+      "interruptible": true
+    }
+  },
+  "behaviors": [
+    {
+      "id": "random_action",
+      "trigger": {
+        "type": "timer",
+        "min_ms": 7000,
+        "max_ms": 16000
+      },
+      "only_when": "fallback",
+      "choose": [
+        {
+          "animation": "look_around",
+          "weight": 5
+        },
+        {
+          "animation": "attack_01",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "cursor_approaches",
+      "trigger": {
+        "type": "cursor_distance_enter",
+        "distance_px": 180,
+        "reset_distance_px": 240
+      },
+      "cooldown_ms": 2500,
+      "choose": [
+        {
+          "animation": "mouse_react",
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "clicked",
+      "trigger": {
+        "type": "click",
+        "button": "left"
+      },
+      "cooldown_ms": 400,
+      "choose": [
+        {
+          "animation": "attack_01",
+          "weight": 3
+        },
+        {
+          "animation": "attack_02",
+          "weight": 1
+        }
+      ]
+    }
+  ]
+}
