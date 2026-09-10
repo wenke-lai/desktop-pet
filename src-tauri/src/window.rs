@@ -31,7 +31,9 @@ pub fn anchor(window: &WebviewWindow, render: &RenderConfig) -> Result<Point, St
     let size = window.inner_size().map_err(|e| e.to_string())?;
     Ok(geometry::anchor_from_origin(Point { x: f64::from(position.x), y: f64::from(position.y) }, Size { width: f64::from(size.width), height: f64::from(size.height) }, Point { x: render.anchor_x, y: render.anchor_y }))
 }
-pub fn place(window: &WebviewWindow, render: &RenderConfig, scale: f64, requested: Option<Point>) -> Result<(), String> {
+/// Returns the final anchor calculated for the queued placement. Native window
+/// changes can be asynchronous, so immediate geometry reads may still be stale.
+pub fn place(window: &WebviewWindow, render: &RenderConfig, scale: f64, requested: Option<Point>) -> Result<Point, String> {
     let monitors = window.available_monitors().map_err(|e| e.to_string())?;
     let areas: Vec<_> = monitors.iter().map(area).collect();
     let work = if let Some(point) = requested {
@@ -46,12 +48,16 @@ pub fn place(window: &WebviewWindow, render: &RenderConfig, scale: f64, requeste
     let normalized = Point { x: render.anchor_x, y: render.anchor_y };
     let origin = requested.map(|p| geometry::origin_from_anchor(p, size, normalized)).unwrap_or(Point { x: work.origin.x + work.size.width - size.width - margin, y: work.origin.y + work.size.height - size.height - margin });
     let origin = geometry::clamp_origin(origin, size, work);
-    let current_pos = window.outer_position().map_err(|e| e.to_string())?;
     let position = PhysicalPosition::new(origin.x.round() as i32, origin.y.round() as i32);
-    if current_pos != position { window.set_position(position).map_err(|e| e.to_string())?; }
     let physical_size = PhysicalSize::new(size.width as u32, size.height as u32);
-    if window.inner_size().map_err(|e| e.to_string())? != physical_size { window.set_size(physical_size).map_err(|e| e.to_string())?; }
-    Ok(())
+    let resized = window.inner_size().map_err(|e| e.to_string())? != physical_size;
+    if resized { window.set_size(physical_size).map_err(|e| e.to_string())?; }
+    // On macOS resizing can shift the top-left corner. Position after resizing,
+    // even if the old position already matched the target.
+    if resized || window.outer_position().map_err(|e| e.to_string())? != position {
+        window.set_position(position).map_err(|e| e.to_string())?;
+    }
+    Ok(geometry::anchor_from_origin(Point { x: f64::from(position.x), y: f64::from(position.y) }, size, normalized))
 }
 pub fn debug_render() -> RenderConfig {
     RenderConfig { canvas_width: 256, canvas_height: 256, scale: 1.0, anchor_x: 0.5, anchor_y: 0.9 }

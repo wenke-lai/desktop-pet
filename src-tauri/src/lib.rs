@@ -42,12 +42,12 @@ fn activate_pet(id: Option<String>, window: WebviewWindow, state: State<'_, AppS
         None => (window::debug_render(), "Debug Pet".into()),
     };
     let anchor = match &session.render { Some(previous) => Some(window::anchor(&window, previous)?), None => session.settings.last_position };
-    window::place(&window, &render, session.settings.scale, anchor)?;
+    let placed_anchor = window::place(&window, &render, session.settings.scale, anchor)?;
     window.set_always_on_top(session.settings.always_on_top).map_err(|e| e.to_string())?;
     window.set_title(&format!("Desktop Pet — {name}")).map_err(|e| e.to_string())?;
     window.show().map_err(|e| e.to_string())?;
     session.settings.active_pet = id;
-    session.settings.last_position = Some(window::anchor(&window, &render)?);
+    session.settings.last_position = Some(placed_anchor);
     session.render = Some(render);
     session.settings.save(&state.root.join("settings.json"))?;
     app.state::<tray::TrayLabel>().0.set_text(&name).map_err(|e| e.to_string())?;
