@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "id": "my_character",
-  "display_name": "My Character",
+  "id": "my_pet",
+  "display_name": "我的寵物",
   "render": {
     "scale": 1,
     "anchor_x": 0.5,
     "anchor_y": 0.95
   },
-  "fallback_animation": "my_motion",
+  "fallback_animation": "idle",
   "animations": {
-    "my_motion": {
+    "idle": {
       "source": {
         "type": "png_sequence",
-        "dir": "animations/my_motion"
+        "dir": "animations/idle"
       },
-      "fps": 24,
+      "fps": 12,
       "loop": true,
       "priority": 0,
       "interruptible": true
