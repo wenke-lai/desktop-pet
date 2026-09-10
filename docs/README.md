@@ -11,6 +11,8 @@ pnpm tauri dev
 
 macOS 可用 `make preview` 建置並開啟 App，產物位於 `target/release/bundle/macos/Desktop Pet.app`。
 
+`make deploy` 建置 App、替換 `~/Applications/Desktop Pet.app`，並啟動安裝好的版本。
+
 ## 寵物放哪裡
 
 從選單列／系統匣選 **Open Pets Folder**，或直接開啟：
