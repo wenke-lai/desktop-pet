@@ -69,9 +69,6 @@ fn discover_frames(root: &Path, dir: &str, expected: Option<(u32, u32)>) -> Resu
     if width == 0 || height == 0 || width > 4096 || height > 4096 {
         return Err(format!("{dir}: PNG dimensions must be 1..4096"));
     }
-    // Bound decoded memory to keep malformed or unexpectedly huge packs recoverable.
-    let bytes = u64::from(width) * u64::from(height) * 4 * files.len() as u64;
-    if bytes > 512 * 1024 * 1024 { return Err(format!("{dir}: decoded sequence exceeds 512 MiB")); }
     let frames = files.into_iter().map(|(_, path)| {
         let mut reader = image::ImageReader::open(&path).map_err(|e| e.to_string())?;
         reader.set_format(image::ImageFormat::Png);
@@ -117,10 +114,6 @@ pub fn load_pet(root: &Path, warnings: &mut Vec<String>) -> Result<LoadedPet, St
         }
     }
     if !clips.contains_key(&definition.fallback_animation) { return Err("fallback animation could not be loaded".into()); }
-    let total_frames: u64 = clips.values().map(|clip| clip.frames.len() as u64).sum();
-    if total_frames * u64::from(definition.render.canvas_width) * u64::from(definition.render.canvas_height) * 5 > 512 * 1024 * 1024 {
-        return Err("decoded pack (RGBA + alpha cache) exceeds 512 MiB; reduce frame count or resolution".into());
-    }
     definition.animations.retain(|name, _| clips.contains_key(name));
     definition.behaviors.retain_mut(|behavior| {
         behavior.choose.retain(|choice| {

@@ -2,6 +2,18 @@ use pet_core::{geometry::{self, Point, Size, WorkArea}, manifest::RenderConfig};
 use serde::Serialize;
 use tauri::{Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
+// Call during setup on the main thread, before enabling cursor passthrough.
+pub fn initialize_cursor_passthrough(window: &WebviewWindow) -> tauri::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        use gtk::prelude::WidgetExt;
+        // Hidden GTK windows may not have a native GDK window yet. Tao's
+        // CursorIgnoreEvents handler requires one. Realize without showing it.
+        window.gtk_window()?.realize();
+    }
+    window.set_ignore_cursor_events(true)
+}
+
 #[derive(Serialize)]
 pub struct DesktopSample { pub cursor: Point, pub origin: Point, pub size: Size, pub scale: f64 }
 fn area(monitor: &Monitor) -> WorkArea {

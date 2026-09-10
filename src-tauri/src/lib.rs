@@ -116,6 +116,13 @@ fn set_usage_hover(hovered: bool, head: Option<Point>, app: tauri::AppHandle) ->
 fn frontend_log(message: String) { log::info!("WebView: {message}"); }
 
 pub fn run() {
+    // Dragging and pixel click-through need global cursor/window coordinates.
+    // Tao returns a constant cursor position on Wayland; use X11 (including
+    // XWayland on WSLg) when available. This must precede GTK initialization.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty()) {
+        gtk::gdk::set_allowed_backends("x11");
+    }
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -133,9 +140,9 @@ pub fn run() {
             let catalog = content::scan(&root.join("pets")).map_err(std::io::Error::other)?;
             app.manage(AppState { root, session: Mutex::new(Session { catalog, settings, render: None }) });
             app.manage(codex::UsageCache::default());
-            if let Some(bubble) = app.get_webview_window("codex-usage") { bubble.set_ignore_cursor_events(true)?; }
+            if let Some(bubble) = app.get_webview_window("codex-usage") { window::initialize_cursor_passthrough(&bubble)?; }
             tray::build(app)?;
-            if let Some(window) = app.get_webview_window("main") { window.set_ignore_cursor_events(true)?; }
+            if let Some(window) = app.get_webview_window("main") { window::initialize_cursor_passthrough(&window)?; }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_snapshot, reload_content, activate_pet, desktop_sample, set_cursor_passthrough, move_pet, settle_window, save_position, frontend_log, get_codex_usage, set_usage_hover])
