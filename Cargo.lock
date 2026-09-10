@@ -740,6 +740,8 @@ version = "0.1.0"
 dependencies = [
  "gtk",
  "log",
+ "objc2",
+ "objc2-app-kit",
  "pet-core",
  "serde",
  "serde_json",

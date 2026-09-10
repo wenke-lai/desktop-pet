@@ -126,6 +126,9 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // A menu-bar accessory can overlay other apps' fullscreen Spaces.
+            #[cfg(target_os = "macos")]
+            app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory)?;
             let project: Project = serde_json::from_str(include_str!("../../package.json"))?;
             let root = app.path().home_dir()?.join(".local/share").join(project.name);
             fs::create_dir_all(root.join("pets"))?;
@@ -140,9 +143,9 @@ pub fn run() {
             let catalog = content::scan(&root.join("pets")).map_err(std::io::Error::other)?;
             app.manage(AppState { root, session: Mutex::new(Session { catalog, settings, render: None }) });
             app.manage(codex::UsageCache::default());
-            if let Some(bubble) = app.get_webview_window("codex-usage") { window::initialize_cursor_passthrough(&bubble)?; }
+            if let Some(bubble) = app.get_webview_window("codex-usage") { window::initialize_overlay(&bubble)?; }
             tray::build(app)?;
-            if let Some(window) = app.get_webview_window("main") { window::initialize_cursor_passthrough(&window)?; }
+            if let Some(window) = app.get_webview_window("main") { window::initialize_overlay(&window)?; }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_snapshot, reload_content, activate_pet, desktop_sample, set_cursor_passthrough, move_pet, settle_window, save_position, frontend_log, get_codex_usage, set_usage_hover])

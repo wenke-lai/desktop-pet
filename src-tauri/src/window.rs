@@ -2,8 +2,23 @@ use pet_core::{geometry::{self, Point, Size, WorkArea}, manifest::RenderConfig};
 use serde::Serialize;
 use tauri::{Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
-// Call during setup on the main thread, before enabling cursor passthrough.
-pub fn initialize_cursor_passthrough(window: &WebviewWindow) -> tauri::Result<()> {
+// Call during setup on the main thread, before showing either overlay.
+pub fn initialize_overlay(window: &WebviewWindow) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior as Behavior};
+        // SAFETY: Tauri owns this NSWindow, and setup runs on the main thread.
+        let native = unsafe { &*window.ns_window()?.cast::<NSWindow>() };
+        let mut behavior = native.collectionBehavior();
+        behavior.remove(Behavior::MoveToActiveSpace | Behavior::FullScreenPrimary | Behavior::FullScreenNone);
+        behavior.insert(Behavior::CanJoinAllSpaces | Behavior::FullScreenAuxiliary);
+        if objc2::available!(macos = 13.0) {
+            // Join other apps' fullscreen Spaces and Stage Manager groups.
+            behavior.remove(Behavior::Primary | Behavior::Auxiliary);
+            behavior.insert(Behavior::CanJoinAllApplications);
+        }
+        native.setCollectionBehavior(behavior);
+    }
     #[cfg(target_os = "linux")]
     {
         use gtk::prelude::WidgetExt;
